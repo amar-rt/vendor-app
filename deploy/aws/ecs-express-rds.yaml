@@ -60,7 +60,7 @@ Resources:
   RdsSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: !Sub "${ServiceName} RDS — Postgres from anywhere in the VPC"
+      GroupDescription: !Sub "${ServiceName} RDS - Postgres from anywhere in the VPC"
       VpcId: !Ref VpcId
       SecurityGroupIngress:
         - IpProtocol: tcp

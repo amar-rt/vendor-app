@@ -151,7 +151,7 @@ Resources:
   AlbSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: ALB — public HTTP/HTTPS in
+      GroupDescription: ALB - public HTTP/HTTPS in
       VpcId: !Ref Vpc
       SecurityGroupIngress:
         - { IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0 }
@@ -162,7 +162,7 @@ Resources:
   Ec2SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: EC2 — only the ALB can reach the app port
+      GroupDescription: EC2 - only the ALB can reach the app port
       VpcId: !Ref Vpc
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -175,7 +175,7 @@ Resources:
   RdsSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: RDS — only the EC2 instance can reach Postgres
+      GroupDescription: RDS - only the EC2 instance can reach Postgres
       VpcId: !Ref Vpc
       SecurityGroupIngress:
         - IpProtocol: tcp
