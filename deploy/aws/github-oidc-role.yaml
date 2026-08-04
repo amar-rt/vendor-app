@@ -8,11 +8,21 @@ Description: >
 Parameters:
   GitHubOrg:
     Type: String
-    Description: GitHub org or user, e.g. "your-org".
+    Description: >
+      GitHub org or user, e.g. "your-org". If your GitHub org/enterprise has
+      immutable-ID subject claims enabled for OIDC, the token's actual `sub`
+      claim looks like "repo:your-org@<org-id>/repo@<repo-id>:ref:...", not
+      the plain "repo:your-org/repo:...". If AssumeRoleWithWebIdentity fails
+      with "Not authorized" despite everything else looking correct, add a
+      debug step to the workflow to print the real token claims (decode the
+      JWT from ACTIONS_ID_TOKEN_REQUEST_URL) and pass "your-org@<org-id>"
+      here instead.
 
   RepoName:
     Type: String
-    Description: Repository name, e.g. "vendor-app".
+    Description: >
+      Repository name, e.g. "vendor-app" — see GitHubOrg above if your org
+      uses immutable-ID subject claims; pass "repo@<repo-id>" instead.
 
   ServiceName:
     Type: String
