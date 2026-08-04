@@ -19,6 +19,12 @@
 
 set -euo pipefail
 
+# Git Bash/MSYS auto-converts bare POSIX-looking args like "/" into a
+# Windows path (its own root mount, e.g. "C:/Program Files/Git/") before
+# native .exe tools like the AWS CLI ever see them — this disables that
+# conversion so --health-check-path "/" reaches AWS as a literal "/".
+export MSYS_NO_PATHCONV=1
+
 STACK_NAME="${STACK_NAME:-vendor-sync-express}"
 SERVICE_NAME="${SERVICE_NAME:-vendor-sync-express}"
 : "${SHOPIFY_API_KEY:?Set SHOPIFY_API_KEY (Client ID from shopify.app.toml)}"

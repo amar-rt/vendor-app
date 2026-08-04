@@ -18,6 +18,10 @@
 
 set -euo pipefail
 
+# See create-express-service.sh — Git Bash/MSYS mangles bare "/" args into
+# a Windows path before the AWS CLI sees them; harmless no-op elsewhere.
+export MSYS_NO_PATHCONV=1
+
 STACK_NAME="${STACK_NAME:-vendor-sync-express}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 : "${SERVICE_ARN:?Set SERVICE_ARN (from the create-express-service.sh output, or: aws ecs list-services --cluster default)}"
