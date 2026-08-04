@@ -49,6 +49,16 @@ Parameters:
     Type: Number
     Default: 20
 
+  DbBackupRetentionPeriod:
+    Type: Number
+    Default: 0
+    Description: >
+      Days of automated RDS backups to retain. Defaults to 0 (disabled)
+      because some free-tier/restricted AWS accounts cap this below the
+      usual max of 7 — bump it up once you're off a constrained account.
+      Note this is separate from the final snapshot this stack always
+      takes on delete (DeletionPolicy: Snapshot on the Database resource).
+
   ShopifyApiSecretArn:
     Type: String
     Description: >
@@ -90,7 +100,7 @@ Resources:
       VPCSecurityGroups: [!Ref RdsSecurityGroup]
       PubliclyAccessible: false
       MultiAZ: false
-      BackupRetentionPeriod: 7
+      BackupRetentionPeriod: !Ref DbBackupRetentionPeriod
       StorageEncrypted: true
 
   Repository:
