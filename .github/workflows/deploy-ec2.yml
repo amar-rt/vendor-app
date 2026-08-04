@@ -1,0 +1,70 @@
+name: Deploy (EC2)
+
+# Manual by default — this is the alternative to deploy.yml (App Runner). If
+# you're actually running the EC2 path day to day, change `on:` to
+# `push: { branches: [main] }` to match deploy.yml's behavior. Leaving both
+# workflows on push would deploy to both targets on every merge.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write # required for OIDC -> AWS
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  ECR_REPOSITORY: vendor-sync-ec2
+  EC2_TAG_VALUE: vendor-sync-ec2 # must match ServiceName in deploy/aws/ec2-rds.yaml
+
+jobs:
+  build-push-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build \
+            -t "$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" \
+            -t "$REGISTRY/$ECR_REPOSITORY:latest" \
+            .
+          docker push "$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          docker push "$REGISTRY/$ECR_REPOSITORY:latest"
+
+      - name: Deploy to EC2 via SSM
+        run: |
+          COMMAND_ID=$(aws ssm send-command \
+            --document-name "AWS-RunShellScript" \
+            --targets "Key=tag:App,Values=${EC2_TAG_VALUE}" \
+            --parameters 'commands=["/opt/vendor-sync/deploy.sh"]' \
+            --query "Command.CommandId" --output text)
+          echo "SSM command: $COMMAND_ID"
+
+          # Poll until it finishes, then fail the job if the instance-side
+          # script failed — otherwise a broken deploy would show green here.
+          for i in $(seq 1 30); do
+            STATUS=$(aws ssm list-command-invocations \
+              --command-id "$COMMAND_ID" --details \
+              --query "CommandInvocations[0].Status" --output text 2>/dev/null || echo "Pending")
+            echo "status: $STATUS"
+            case "$STATUS" in
+              Success) exit 0 ;;
+              Failed|Cancelled|TimedOut) echo "Deploy failed on instance"; exit 1 ;;
+            esac
+            sleep 10
+          done
+          echo "Timed out waiting for deploy to finish"
+          exit 1

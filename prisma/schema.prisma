@@ -1,0 +1,106 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
+// enough when changing adapters.
+// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id            String    @id
+  shop          String
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        BigInt?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean   @default(false)
+  locale        String?
+  collaborator  Boolean?  @default(false)
+  emailVerified Boolean?  @default(false)
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+}
+
+// A vendor shop's brand profile, attached as metafields to every product it
+// pushes to a destination shop. A shop can carry multiple brands (e.g. a
+// distributor selling several manufacturers' lines) — at push time, a
+// product is auto-matched to one of the shop's brands by comparing its
+// Shopify vendor field (falling back to product type) against Brand.name.
+model Brand {
+  id          String   @id @default(cuid())
+  shop        String
+  name        String
+  logoUrl     String?
+  description String?
+  accentColor String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([shop, name])
+  @@index([shop])
+}
+
+// A vendor shop's destination store: a custom app the destination merchant
+// created in their own admin (Settings > Apps > Develop apps). Its client id
+// + secret let us mint an Admin API access token on demand via the OAuth
+// client_credentials grant (Shopify only supports this grant for
+// merchant-created custom apps, since creating that app *is* the merchant's
+// consent — no separate authorize/approve step exists or is needed).
+model DestinationStore {
+  id           String   @id @default(cuid())
+  vendorShop   String   @unique
+  domain       String
+  clientId     String
+  clientSecret String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  productLinks ProductLink[]
+}
+
+// One product pushed from a vendor shop to a destination shop.
+model ProductLink {
+  id                    String   @id @default(cuid())
+  destinationStoreId    String
+  vendorShop            String
+  destinationShop       String
+  sourceProductId       String
+  destinationProductId  String
+  destinationLocationId String
+  brand                 String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  destinationStore DestinationStore @relation(fields: [destinationStoreId], references: [id], onDelete: Cascade)
+  variants         VariantLink[]
+
+  @@unique([vendorShop, destinationShop, sourceProductId])
+  @@index([destinationStoreId])
+}
+
+// Per-variant id + inventory item mapping, needed to push quantity updates.
+model VariantLink {
+  id                         String @id @default(cuid())
+  productLinkId              String
+  sourceVariantId            String
+  sourceInventoryItemId      String
+  destinationVariantId       String
+  destinationInventoryItemId String
+  sku                        String?
+
+  productLink ProductLink @relation(fields: [productLinkId], references: [id], onDelete: Cascade)
+
+  @@unique([productLinkId, sourceVariantId])
+}

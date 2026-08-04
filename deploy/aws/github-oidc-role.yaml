@@ -1,0 +1,129 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  One-time, account-level setup: lets GitHub Actions in this repo push
+  images to ECR via short-lived OIDC-federated credentials — no long-lived
+  AWS access keys stored as GitHub secrets. Deploy this once per AWS
+  account, separately from app-runner.yaml.
+
+Parameters:
+  GitHubOrg:
+    Type: String
+    Description: GitHub org or user, e.g. "your-org".
+
+  RepoName:
+    Type: String
+    Description: Repository name, e.g. "vendor-app".
+
+  ServiceName:
+    Type: String
+    Default: vendor-sync
+    Description: Must match ServiceName in app-runner.yaml — scopes ECR push access to that repository.
+
+  Ec2ServiceName:
+    Type: String
+    Default: vendor-sync-ec2
+    Description: >
+      Must match ServiceName in ec2-rds.yaml — scopes ECR push access to
+      that repository, and scopes SSM deploy access to instances tagged
+      App=<this value>. Leave as-is if you're not using the EC2 path.
+
+  ExpressServiceName:
+    Type: String
+    Default: vendor-sync-express
+    Description: >
+      Must match ServiceName in ecs-express-rds.yaml, and the
+      --service-name used with create-express-service.sh — scopes ECR
+      push access to that repository, and scopes ECS Express Mode deploy
+      access. Leave as-is if you're not using the ECS Express Mode path.
+
+  # Leave as-is unless this AWS account already has a GitHub OIDC provider
+  # registered (an account can only have one; CloudFormation errors if you
+  # try to create a duplicate).
+  CreateOidcProvider:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+
+Conditions:
+  ShouldCreateOidcProvider: !Equals [!Ref CreateOidcProvider, "true"]
+
+Resources:
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Condition: ShouldCreateOidcProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      ThumbprintList:
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+
+  DeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ServiceName}-github-deploy"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub "arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com"
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                token.actions.githubusercontent.com:sub: !Sub "repo:${GitHubOrg}/${RepoName}:*"
+      Policies:
+        - PolicyName: PushToEcr
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: ecr:GetAuthorizationToken
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:PutImage
+                  - ecr:InitiateLayerUpload
+                  - ecr:UploadLayerPart
+                  - ecr:CompleteLayerUpload
+                Resource:
+                  - !Sub "arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${ServiceName}"
+                  - !Sub "arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${Ec2ServiceName}"
+                  - !Sub "arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${ExpressServiceName}"
+        - PolicyName: DeployToEcsExpress
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecs:UpdateExpressGatewayService
+                  - ecs:DescribeExpressGatewayService
+                Resource: !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/default/${ExpressServiceName}"
+              - Effect: Allow
+                Action: iam:PassRole
+                Resource:
+                  - !Sub "arn:aws:iam::${AWS::AccountId}:role/${ExpressServiceName}-execution-role"
+                  - !Sub "arn:aws:iam::${AWS::AccountId}:role/${ExpressServiceName}-infra-role"
+        - PolicyName: DeployToEc2ViaSsm
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: ssm:SendCommand
+                Resource:
+                  - !Sub "arn:aws:ssm:${AWS::Region}::document/AWS-RunShellScript"
+                  - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
+                Condition:
+                  StringEquals:
+                    "ssm:resourceTag/App": !Ref Ec2ServiceName
+              - Effect: Allow
+                Action: ssm:GetCommandInvocation
+                Resource: "*"
+
+Outputs:
+  DeployRoleArn:
+    Description: Put this in the GitHub repo as the AWS_DEPLOY_ROLE_ARN secret.
+    Value: !GetAtt DeployRole.Arn
