@@ -42,6 +42,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # TEMPORARY: prints the actual OIDC token claims GitHub issues, so we
+      # can compare them against the IAM role's trust policy directly
+      # instead of guessing. Remove once the AssumeRoleWithWebIdentity
+      # failure is resolved — no secret values are printed, only identity
+      # claims (sub/aud/repository/ref), which are not sensitive.
+      - name: Debug OIDC token claims
+        run: |
+          IDTOKEN=$(curl -sSL -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com" | jq -r '.value')
+          PAYLOAD=$(echo "$IDTOKEN" | cut -d '.' -f2 | tr -- '-_' '+/')
+          while [ $(( ${#PAYLOAD} % 4 )) -ne 0 ]; do PAYLOAD="${PAYLOAD}="; done
+          echo "$PAYLOAD" | base64 -d | jq '{sub, aud, iss, repository, repository_owner, ref, event_name}'
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
