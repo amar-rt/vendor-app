@@ -373,7 +373,7 @@ export default function Settings() {
           Each brand is sent as metafields on the products it applies to. A
           product is matched to a brand automatically at push time by
           comparing its Shopify vendor field (falling back to product type)
-          against a brand's name — set up one brand per manufacturer/line
+          against a brand’s name — set up one brand per manufacturer/line
           you carry.
         </s-paragraph>
 
@@ -516,7 +516,15 @@ function BrandCard({
           ></s-text-field>
 
           <div
+            role="button"
+            tabIndex={0}
             onClick={() => !logoUrl && logoFileInput.current?.click()}
+            onKeyDown={(e) => {
+              if ((e.key === "Enter" || e.key === " ") && !logoUrl) {
+                e.preventDefault();
+                logoFileInput.current?.click();
+              }
+            }}
             onDragEnter={(e) => {
               e.preventDefault();
               dragCounter.current += 1;

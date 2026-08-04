@@ -23,11 +23,11 @@ export default function App() {
       <div className={styles.content}>
         <span className={styles.eyebrow}>Vendor Sync</span>
         <h1 className={styles.heading}>
-          Publish your catalog straight into your retail partners' stores
+          Publish your catalog straight into your retail partners’ stores
         </h1>
         <p className={styles.text}>
           Push products — images, price, and brand identity included — from
-          your own store into a destination store's catalog, then keep
+          your own store into a destination store’s catalog, then keep
           inventory in sync down to the variant, all without either store
           re-entering a thing.
         </p>
@@ -56,7 +56,7 @@ export default function App() {
             </span>
             <div>
               <strong>One-click catalog push.</strong> Select products from
-              your own store and publish them to your retail partner's
+              your own store and publish them to your retail partner’s
               store — photos, pricing, and variants included, with no manual
               re-entry on either side.
             </div>
@@ -79,7 +79,7 @@ export default function App() {
             <div>
               <strong>Built-in brand identity.</strong> Your logo,
               description, and accent color travel with every product you
-              publish, so your brand stays visible wherever it's sold.
+              publish, so your brand stays visible wherever it’s sold.
             </div>
           </li>
         </ul>

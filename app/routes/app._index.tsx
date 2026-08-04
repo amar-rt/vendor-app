@@ -42,7 +42,7 @@ export default function Index() {
         <s-unordered-list>
           <s-list-item>
             Go to <s-link href="/app/settings">Settings</s-link> to configure
-            your destination store's Client ID/Secret and your brand profile.
+            your destination store’s Client ID/Secret and your brand profile.
           </s-list-item>
           <s-list-item>
             Then go to <s-link href="/app/products">Products</s-link> to push

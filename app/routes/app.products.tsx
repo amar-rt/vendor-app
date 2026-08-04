@@ -1017,7 +1017,7 @@ export default function Products() {
             <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
               <s-stack direction="block" gap="small">
                 <s-text color="subdued">
-                  Bulk update mirrors each product's full available quantity —
+                  Bulk update mirrors each product’s full available quantity —
                   to publish a partial amount, update that row individually.
                 </s-text>
                 <s-stack direction="inline" gap="base" alignItems="center">
@@ -1405,7 +1405,7 @@ function UnpushButton({
         <s-paragraph>
           This permanently deletes <s-text>{product.title}</s-text> — along
           with all of its variants, images, and inventory records — from
-          your destination store. This can't be undone. Your own store's
+          your destination store. This can’t be undone. Your own store’s
           product is not affected.
         </s-paragraph>
       </s-modal>

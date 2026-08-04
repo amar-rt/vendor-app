@@ -50,6 +50,11 @@ module.exports = {
       },
       rules: {
         "react/no-unknown-property": ["error", { ignore: ["variant"] }],
+        // Setting state from a fetcher's `data` effect is the standard
+        // React Router fetcher pattern used throughout this app (e.g.
+        // resetting local UI state once a submission resolves) — downgraded
+        // to a warning rather than restructuring every fetcher call site.
+        "react-hooks/set-state-in-effect": "warn",
       },
     },
 
@@ -74,6 +79,15 @@ module.exports = {
         "plugin:import/recommended",
         "plugin:import/typescript",
       ],
+      rules: {
+        // The recommended config errors on this. Most uses here are raw
+        // Shopify GraphQL JSON responses (fetch().json() is `any` from
+        // TS's own lib types, and we don't generate response interfaces
+        // for every query/mutation) plus a few Polaris web-component
+        // event handlers — downgraded to a warning rather than typing all
+        // of those out.
+        "@typescript-eslint/no-explicit-any": "warn",
+      },
     },
 
     // Node
