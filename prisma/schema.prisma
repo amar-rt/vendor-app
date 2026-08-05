@@ -35,23 +35,18 @@ model Session {
   @@map("session")
 }
 
-// A vendor shop's brand profile, attached as metafields to every product it
-// pushes to a destination shop. A shop can carry multiple brands (e.g. a
-// distributor selling several manufacturers' lines) — at push time, a
-// product is auto-matched to one of the shop's brands by comparing its
-// Shopify vendor field (falling back to product type) against Brand.name.
+// A vendor shop's single brand profile, attached as metafields to every
+// product it pushes to a destination shop. One brand per shop — shop is
+// unique.
 model Brand {
   id          String   @id @default(cuid())
-  shop        String
+  shop        String   @unique
   name        String
   logoUrl     String?
   description String?
   accentColor String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  @@unique([shop, name])
-  @@index([shop])
 }
 
 // A vendor shop's destination store: a custom app the destination merchant

@@ -19,12 +19,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shop = session.shop;
 
-  const [destination, brands] = await Promise.all([
+  const [destination, brand] = await Promise.all([
     db.destinationStore.findUnique({ where: { vendorShop: shop } }),
-    db.brand.findMany({ where: { shop }, orderBy: { name: "asc" } }),
+    db.brand.findUnique({ where: { shop } }),
   ]);
 
-  return { shop, destination, brands };
+  return { shop, destination, brand };
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -221,7 +221,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   if (intent === "saveBrand") {
-    const brandId = String(formData.get("brandId") || "").trim() || null;
     const name = String(formData.get("name") || "").trim();
     const logoUrl = String(formData.get("logoUrl") || "").trim() || null;
     const description =
@@ -233,33 +232,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return { error: "Brand name is required." };
     }
 
-    try {
-      if (brandId) {
-        const updated = await db.brand.updateMany({
-          where: { id: brandId, shop },
-          data: { name, logoUrl, description, accentColor },
-        });
-        if (updated.count === 0) {
-          return { error: "Brand not found." };
-        }
-      } else {
-        await db.brand.create({
-          data: { shop, name, logoUrl, description, accentColor },
-        });
-      }
-    } catch (err: any) {
-      if (err?.code === "P2002") {
-        return { error: `You already have a brand named "${name}".` };
-      }
-      throw err;
-    }
+    await db.brand.upsert({
+      where: { shop },
+      update: { name, logoUrl, description, accentColor },
+      create: { shop, name, logoUrl, description, accentColor },
+    });
 
     return { ok: true };
   }
 
   if (intent === "deleteBrand") {
-    const brandId = String(formData.get("brandId") || "");
-    await db.brand.deleteMany({ where: { id: brandId, shop } });
+    await db.brand.deleteMany({ where: { shop } });
     return { ok: true };
   }
 
@@ -267,11 +250,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Settings() {
-  const { destination, brands } = useLoaderData<typeof loader>();
+  const { destination, brand } = useLoaderData<typeof loader>();
   const destinationFetcher = useFetcher<typeof action>();
   const testFetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
-  const [isAddingBrand, setIsAddingBrand] = useState(false);
 
   useEffect(() => {
     if (destinationFetcher.data && "error" in destinationFetcher.data) {
@@ -368,27 +350,14 @@ export default function Settings() {
         </destinationFetcher.Form>
       </s-section>
 
-      <s-section heading="Brands">
+      <s-section heading="Brand">
         <s-paragraph>
-          Each brand is sent as metafields on the products it applies to. A
-          product is matched to a brand automatically at push time by
-          comparing its Shopify vendor field (falling back to product type)
-          against a brand’s name — set up one brand per manufacturer/line
-          you carry.
+          Sent as metafields on every product you push to the destination
+          store.
         </s-paragraph>
 
         <s-stack direction="block" gap="base">
-          {brands.map((b) => (
-            <BrandCard key={b.id} brand={b} />
-          ))}
-
-          {isAddingBrand ? (
-            <BrandCard onCancel={() => setIsAddingBrand(false)} />
-          ) : (
-            <s-button onClick={() => setIsAddingBrand(true)}>
-              Add brand
-            </s-button>
-          )}
+          <BrandCard brand={brand ?? undefined} />
         </s-stack>
       </s-section>
     </s-page>
@@ -397,16 +366,13 @@ export default function Settings() {
 
 function BrandCard({
   brand,
-  onCancel,
 }: {
   brand?: {
-    id: string;
     name: string;
     logoUrl: string | null;
     description: string | null;
     accentColor: string | null;
   };
-  onCancel?: () => void;
 }) {
   const shopify = useAppBridge();
   const saveFetcher = useFetcher<typeof action>();
@@ -489,7 +455,7 @@ function BrandCard({
             {...(isDeleting ? { loading: true } : {})}
             onClick={() =>
               deleteFetcher.submit(
-                { intent: "deleteBrand", brandId: brand.id },
+                { intent: "deleteBrand" },
                 { method: "post" },
               )
             }
@@ -505,13 +471,11 @@ function BrandCard({
     <s-box padding="base" borderWidth="base" borderRadius="base">
       <saveFetcher.Form method="post">
         <input type="hidden" name="intent" value="saveBrand" />
-        {brand && <input type="hidden" name="brandId" value={brand.id} />}
         <input type="hidden" name="logoUrl" value={logoUrl} />
         <s-stack direction="block" gap="base">
           <s-text-field
             name="name"
             label="Brand name"
-            placeholder="Must match the product's Vendor field exactly"
             defaultValue={brand?.name ?? ""}
           ></s-text-field>
 
@@ -628,12 +592,11 @@ function BrandCard({
             >
               {brand ? "Save brand" : "Create brand"}
             </s-button>
-            <s-button
-              variant="tertiary"
-              onClick={() => (brand ? setIsEditing(false) : onCancel?.())}
-            >
-              Cancel
-            </s-button>
+            {brand && (
+              <s-button variant="tertiary" onClick={() => setIsEditing(false)}>
+                Cancel
+              </s-button>
+            )}
           </s-stack>
         </s-stack>
       </saveFetcher.Form>

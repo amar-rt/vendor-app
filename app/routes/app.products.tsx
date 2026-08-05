@@ -126,33 +126,6 @@ type BrandRecord = {
   accentColor: string | null;
 };
 
-// Auto-matches a product to one of the shop's brands — no manual picking.
-// Vendor is the primary signal (Shopify's own analog for "brand"); product
-// type is a fallback for catalogs that don't use vendor that way. Exact,
-// case-insensitive match against Brand.name.
-function matchBrand(
-  brands: BrandRecord[],
-  vendor: string | null | undefined,
-  productType: string | null | undefined,
-): BrandRecord | null {
-  const normalize = (s: string | null | undefined) =>
-    s?.trim().toLowerCase() || null;
-  const normalizedVendor = normalize(vendor);
-  const normalizedType = normalize(productType);
-
-  if (normalizedVendor) {
-    const byVendor = brands.find(
-      (b) => normalize(b.name) === normalizedVendor,
-    );
-    if (byVendor) return byVendor;
-  }
-  if (normalizedType) {
-    const byType = brands.find((b) => normalize(b.name) === normalizedType);
-    if (byType) return byType;
-  }
-  return null;
-}
-
 function brandMetafields(brand: {
   name: string | null;
   logoUrl: string | null;
@@ -179,7 +152,7 @@ function brandMetafields(brand: {
 async function pushOne(
   admin: any,
   destination: { id: string; domain: string; clientId: string; clientSecret: string },
-  brands: BrandRecord[],
+  brand: BrandRecord | null,
   vendorShop: string,
   sourceProductId: string,
 ) {
@@ -208,7 +181,6 @@ async function pushOne(
     return { id: sourceProductId, ok: false, error: "Source product not found." };
   }
   const sourceVariants = sourceProduct.variants.edges.map((e: any) => e.node);
-  const brand = matchBrand(brands, sourceProduct.vendor, sourceProduct.productType);
 
   // 2. Open an admin client for the destination store. This mints a fresh
   //    Admin API access token via the destination's custom-app client
@@ -762,12 +734,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return { error: "No products selected." };
     }
     const destination = await requireDestinationStore(vendorShop);
-    const brands = await db.brand.findMany({ where: { shop: vendorShop } });
+    const brand = await db.brand.findUnique({ where: { shop: vendorShop } });
 
     const results = [];
     for (const productId of productIds) {
       results.push(
-        await pushOne(admin, destination, brands, vendorShop, productId),
+        await pushOne(admin, destination, brand, vendorShop, productId),
       );
     }
 
