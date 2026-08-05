@@ -118,7 +118,10 @@ pnpm run build
 
 ## Hosting
 
-When you're ready to set up your app in production, you can follow [our deployment documentation](https://shopify.dev/docs/apps/launch/deployment) to host it externally. From there, you have a few options:
+This app deploys to **Vercel** — see [deploy/README-vercel.md](deploy/README-vercel.md) for
+the full setup (environment variables, Postgres connection pooling, migrations).
+
+When you're ready to set up your app in production, you can also follow [our deployment documentation](https://shopify.dev/docs/apps/launch/deployment) to host it on other platforms. From there, you have a few options:
 
 - [Google Cloud Run](https://shopify.dev/docs/apps/launch/deployment/deploy-to-google-cloud-run): This tutorial is written specifically for this example repo, and is compatible with the extended steps included in the subsequent [**Build your app**](tutorial) in the **Getting started** docs. It is the most detailed tutorial for taking a React Router-based Shopify app and deploying it to production. It includes configuring permissions and secrets, setting up a production database, and even hosting your apps behind a load balancer across multiple regions.
 - [Fly.io](https://fly.io/docs/js/shopify/): Leverages the Fly.io CLI to quickly launch Shopify apps to a single machine.
