@@ -863,8 +863,8 @@ export default function Products() {
   const isBulkBusy = bulkFetcher.state !== "idle";
 
   const selectableIds = useMemo(
-    () => products.map((p: any) => p.id),
-    [products],
+    () => products.filter((p: any) => !links[p.id]).map((p: any) => p.id),
+    [products, links],
   );
   const allSelected =
     selectableIds.length > 0 && selected.size === selectableIds.length;
@@ -1105,25 +1105,17 @@ function ProductRow({
           <s-checkbox
             accessibilityLabel={`Select ${product.title}`}
             checked={selected}
+            disabled={!!link}
             onChange={onToggle}
           ></s-checkbox>
         )}
       </s-table-cell>
       <s-table-cell>
-        {product.featuredImage?.url ? (
-          <s-thumbnail
-            src={product.featuredImage.url}
-            alt={product.featuredImage.altText ?? product.title}
-            size="small"
-          ></s-thumbnail>
-        ) : (
-          <s-box
-            padding="base"
-            borderWidth="base"
-            borderRadius="base"
-            background="subdued"
-          ></s-box>
-        )}
+        <s-thumbnail
+          src={product.featuredImage?.url}
+          alt={product.featuredImage?.altText ?? product.title}
+          size="small"
+        ></s-thumbnail>
       </s-table-cell>
       <s-table-cell>
         {/* s-link doesn't expose a style/className prop to override its
