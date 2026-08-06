@@ -922,7 +922,7 @@ export default function Products() {
     .filter(Boolean) as { id: string; destinationProductId: string }[];
 
   return (
-    <s-page heading="Products">
+    <s-page heading="Products" inlineSize="large">
       {!destination && (
         <s-section heading="No destination store configured">
           <s-paragraph>
