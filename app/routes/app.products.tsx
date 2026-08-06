@@ -158,6 +158,55 @@ function brandMetafields(brand: {
     }));
 }
 
+// New products aren't assigned to any sales channel by default — this
+// finds the destination store's Online Store publication and publishes
+// the product to it, so it's actually visible on the storefront.
+async function publishToOnlineStore(destinationAdmin: any, productId: string) {
+  const pubResp = await destinationAdmin.graphql(
+    `#graphql
+      query OnlineStorePublication {
+        publications(first: 20) {
+          edges { node { id catalog { title } } }
+        }
+      }`,
+  );
+  const pubJson = await pubResp.json();
+  if (pubJson.errors) {
+    throw new Error(
+      `Could not look up sales channels: ${JSON.stringify(pubJson.errors)}`,
+    );
+  }
+  const publications = pubJson.data?.publications?.edges ?? [];
+  const onlineStore = publications.find(
+    (e: any) => e.node.catalog?.title === "Online Store",
+  );
+  if (!onlineStore) {
+    throw new Error("Destination store has no Online Store sales channel.");
+  }
+
+  const publishResp = await destinationAdmin.graphql(
+    `#graphql
+      mutation PublishProduct($id: ID!, $input: [PublicationInput!]!) {
+        publishablePublish(id: $id, input: $input) {
+          userErrors { field message }
+        }
+      }`,
+    { variables: { id: productId, input: [{ publicationId: onlineStore.node.id }] } },
+  );
+  const publishJson = await publishResp.json();
+  if (publishJson.errors) {
+    throw new Error(
+      `Could not publish to Online Store: ${JSON.stringify(publishJson.errors)}`,
+    );
+  }
+  const publishErrors = publishJson.data?.publishablePublish?.userErrors;
+  if (publishErrors?.length) {
+    throw new Error(
+      `Could not publish to Online Store: ${publishErrors.map((e: any) => e.message).join(", ")}`,
+    );
+  }
+}
+
 async function pushOne(
   admin: any,
   destination: { id: string; domain: string; clientId: string; clientSecret: string },
@@ -273,6 +322,18 @@ async function pushOne(
   }
   const destinationProduct = createJson.data!.productCreate!.product!;
   const defaultVariant = destinationProduct.variants.edges[0].node;
+
+  // 3b. New products aren't on any sales channel by default — publish to
+  //     the destination's Online Store channel so it's actually visible.
+  try {
+    await publishToOnlineStore(destinationAdmin, destinationProduct.id);
+  } catch (err) {
+    return {
+      id: sourceProductId,
+      ok: false,
+      error: err instanceof Error ? err.message : "Could not publish to Online Store.",
+    };
+  }
 
   // 4. Set price/sku on the auto-created default variant for source
   //    variant #0, then bulk-create any remaining variants.

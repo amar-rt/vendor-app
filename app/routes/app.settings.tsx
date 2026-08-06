@@ -293,6 +293,10 @@ export default function Settings() {
           <s-list-item>read_inventory / write_inventory</s-list-item>
           <s-list-item>read_locations</s-list-item>
           <s-list-item>write_files (for forwarding product images)</s-list-item>
+          <s-list-item>
+            read_publications / write_publications (to publish pushed
+            products to the Online Store channel)
+          </s-list-item>
         </s-unordered-list>
         <s-paragraph color="subdued">
           A missing scope here doesn’t show up as a clear permission error —
