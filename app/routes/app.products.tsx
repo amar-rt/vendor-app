@@ -18,7 +18,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const shop = session.shop;
   const url = new URL(request.url);
   const search = url.searchParams.get("q")?.trim() ?? "";
-  const activeOnly = url.searchParams.get("status") === "active";
   const pushedOnly = url.searchParams.get("pushed") === "1";
 
   const destination = await db.destinationStore.findUnique({
@@ -30,8 +29,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const sanitizedSearch = search.replace(/["*\\]/g, "");
   const queryParts = [];
   if (sanitizedSearch) queryParts.push(`title:*${sanitizedSearch}*`);
-  if (activeOnly) queryParts.push("status:active");
-  const searchQuery = queryParts.length ? queryParts.join(" AND ") : null;
+  queryParts.push("status:active");
+  const searchQuery = queryParts.join(" AND ");
 
   const productsResponse = await admin.graphql(
     `#graphql
@@ -99,7 +98,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     products: filteredProducts,
     links,
     search,
-    activeOnly,
     pushedOnly,
   };
 };
@@ -835,7 +833,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 // ---------------------------------------------------------------------------
 
 export default function Products() {
-  const { shop, destination, products, links, search, activeOnly, pushedOnly } =
+  const { shop, destination, products, links, search, pushedOnly } =
     useLoaderData<typeof loader>();
   const [searchParams, setSearchParams] = useSearchParams();
   // Only drives the persistent top button + the bulk "update quantity" bar.
@@ -909,13 +907,6 @@ export default function Products() {
     }, 400);
   };
 
-  const toggleActiveOnly = () => {
-    const next = new URLSearchParams(searchParams);
-    if (activeOnly) next.delete("status");
-    else next.set("status", "active");
-    setSearchParams(next);
-  };
-
   const togglePushedOnly = () => {
     const next = new URLSearchParams(searchParams);
     if (pushedOnly) next.delete("pushed");
@@ -941,16 +932,35 @@ export default function Products() {
         </s-section>
       )}
 
-      <s-section heading={destination ? `Catalog — pushing to ${destination.domain}` : "Catalog"}>
+      <s-section>
+        <s-heading>
+          <s-text type="strong">Catalog</s-text>
+          {destination && (
+            <s-text> : pushing to Destination store ({destination.domain})</s-text>
+          )}
+        </s-heading>
         <s-stack direction="block" gap="base">
-          <s-stack direction="inline" gap="base" alignItems="center" justifyContent="space-between">
-            <s-search-field
-              label="Search products"
-              labelAccessibilityVisibility="exclusive"
-              placeholder="Search by title…"
-              defaultValue={search}
-              onInput={onSearchInput}
-            ></s-search-field>
+          <s-search-field
+            label="Search products"
+            labelAccessibilityVisibility="exclusive"
+            placeholder="Search by title…"
+            defaultValue={search}
+            onInput={onSearchInput}
+          ></s-search-field>
+
+          <s-stack
+            direction="inline"
+            gap="base"
+            alignItems="center"
+            justifyContent={destination ? "space-between" : "end"}
+          >
+            {destination && (
+              <s-checkbox
+                label="Pushed only"
+                checked={pushedOnly}
+                onChange={togglePushedOnly}
+              ></s-checkbox>
+            )}
             <s-button
               variant="primary"
               disabled={selected.size === 0}
@@ -968,21 +978,6 @@ export default function Products() {
             >
               Push to destination store
             </s-button>
-          </s-stack>
-
-          <s-stack direction="inline" gap="base" alignItems="center">
-            <s-checkbox
-              label="Active only"
-              checked={activeOnly}
-              onChange={toggleActiveOnly}
-            ></s-checkbox>
-            {destination && (
-              <s-checkbox
-                label="Pushed only"
-                checked={pushedOnly}
-                onChange={togglePushedOnly}
-              ></s-checkbox>
-            )}
           </s-stack>
 
           {destination && selectedLinked.length > 0 && (
@@ -1164,11 +1159,11 @@ function ProductRow({
           </div>
         ) : (
           <s-button
-            icon="export"
-            accessibilityLabel="Push to store"
             {...(isBusy ? { loading: true } : {})}
             onClick={push}
-          ></s-button>
+          >
+            Push
+          </s-button>
         )}
       </s-table-cell>
     </s-table-row>
