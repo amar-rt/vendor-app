@@ -336,9 +336,24 @@ async function pushOne(
     }
     const createdVariants =
       bulkCreateJson.data?.productVariantsBulkCreate?.productVariants ?? [];
+    if (createdVariants.length !== restSource.length) {
+      return {
+        id: sourceProductId,
+        ok: false,
+        error: `productVariantsBulkCreate returned ${createdVariants.length} variant(s), expected ${restSource.length}.`,
+      };
+    }
+    for (const [idx, created] of createdVariants.entries()) {
+      if (!created?.inventoryItem?.id) {
+        return {
+          id: sourceProductId,
+          ok: false,
+          error: `Created variant ${created?.id ?? `#${idx}`} came back with no inventory item.`,
+        };
+      }
+    }
     restSource.forEach((v: any, idx: number) => {
       const created = createdVariants[idx];
-      if (!created) return;
       variantLinks.push({
         sourceVariantId: v.id,
         sourceInventoryItemId: v.id,
@@ -477,7 +492,7 @@ async function ensureTracked(
       const delay = NOT_YET_CONSISTENT_DELAYS_MS[attempt];
       if (!notYetConsistent || delay === undefined) {
         throw new Error(
-          `Could not enable inventory tracking: ${trackedErrors.map((e) => e.message).join(", ")}`,
+          `Could not enable inventory tracking for ${id}: ${trackedErrors.map((e) => e.message).join(", ")}`,
         );
       }
       await new Promise((resolve) => setTimeout(resolve, delay));
