@@ -848,11 +848,12 @@ export default function Products() {
     if (bulkFetcher.data && "error" in bulkFetcher.data && bulkFetcher.data.error) {
       shopify.toast.show(bulkFetcher.data.error, { isError: true });
     } else if (bulkFetcher.data?.ok && bulkFetcher.data.action !== "unpush") {
-      const { succeeded, failed, action: actionName } = bulkFetcher.data;
+      const { succeeded, failed, errors, action: actionName } = bulkFetcher.data;
       const verb = actionName === "push" ? "pushed" : "updated";
+      const detail = errors?.filter(Boolean).join("; ");
       const message =
         failed > 0
-          ? `${succeeded} ${verb}, ${failed} failed`
+          ? `${succeeded} ${verb}, ${failed} failed${detail ? `: ${detail}` : ""}`
           : `${succeeded} ${verb}`;
       shopify.toast.show(message, { isError: failed > 0 && succeeded === 0 });
       setSelected(new Set());
@@ -1071,8 +1072,16 @@ function ProductRow({
   useEffect(() => {
     if (fetcher.data && "error" in fetcher.data && fetcher.data.error) {
       shopify.toast.show(fetcher.data.error, { isError: true });
-    } else if (fetcher.data?.ok) {
-      shopify.toast.show(`Pushed ${product.title}`);
+    } else if (fetcher.data?.ok && fetcher.data.action === "push") {
+      if (fetcher.data.failed > 0) {
+        const detail = fetcher.data.errors?.filter(Boolean).join("; ");
+        shopify.toast.show(
+          `Push failed${detail ? `: ${detail}` : ""}`,
+          { isError: true },
+        );
+      } else {
+        shopify.toast.show(`Pushed ${product.title}`);
+      }
     }
   }, [fetcher.data, shopify, product.title]);
 
