@@ -436,32 +436,51 @@ async function pushOne(
 // location"), as a userError rather than a thrown exception. Products
 // created before either of these was asserted explicitly may still be
 // missing one or both, so every quantity sync re-asserts them first.
+// Inventory items created via productVariantsBulkCreate (i.e. every variant
+// past the first — the first is created atomically inside productCreate
+// itself, and is immediately mutable) can take a moment on Shopify's side
+// before they're consistent enough for a follow-up inventoryItemUpdate call,
+// which otherwise fails with a "does not exist" userError. Retry with
+// backoff on that specific error rather than failing the whole push.
+const NOT_YET_CONSISTENT_DELAYS_MS = [500, 1000, 2000];
+
 async function ensureTracked(
   destinationAdmin: any,
   inventoryItemIds: string[],
   locationId: string,
 ) {
   for (const id of inventoryItemIds) {
-    const trackedResp = await destinationAdmin.graphql(
-      `#graphql
-        mutation EnsureTracked($id: ID!, $input: InventoryItemInput!) {
-          inventoryItemUpdate(id: $id, input: $input) {
-            userErrors { field message }
-          }
-        }`,
-      { variables: { id, input: { tracked: true } } },
-    );
-    const trackedJson = await trackedResp.json();
-    if (trackedJson.errors) {
-      throw new Error(
-        `Could not enable inventory tracking: ${JSON.stringify(trackedJson.errors)}`,
+    let trackedErrors: { field: string[] | null; message: string }[] | undefined;
+
+    for (let attempt = 0; ; attempt++) {
+      const trackedResp = await destinationAdmin.graphql(
+        `#graphql
+          mutation EnsureTracked($id: ID!, $input: InventoryItemInput!) {
+            inventoryItemUpdate(id: $id, input: $input) {
+              userErrors { field message }
+            }
+          }`,
+        { variables: { id, input: { tracked: true } } },
       );
-    }
-    const trackedErrors = trackedJson.data?.inventoryItemUpdate?.userErrors;
-    if (trackedErrors?.length) {
-      throw new Error(
-        `Could not enable inventory tracking: ${trackedErrors.map((e: any) => e.message).join(", ")}`,
+      const trackedJson = await trackedResp.json();
+      if (trackedJson.errors) {
+        throw new Error(
+          `Could not enable inventory tracking: ${JSON.stringify(trackedJson.errors)}`,
+        );
+      }
+      trackedErrors = trackedJson.data?.inventoryItemUpdate?.userErrors;
+      if (!trackedErrors?.length) break;
+
+      const notYetConsistent = trackedErrors.some((e) =>
+        /does not exist/i.test(e.message),
       );
+      const delay = NOT_YET_CONSISTENT_DELAYS_MS[attempt];
+      if (!notYetConsistent || delay === undefined) {
+        throw new Error(
+          `Could not enable inventory tracking: ${trackedErrors.map((e) => e.message).join(", ")}`,
+        );
+      }
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
 
     // Best-effort: connects the item to the location so it can hold a
@@ -1020,7 +1039,7 @@ export default function Products() {
               <s-table-header listSlot="secondary">Status</s-table-header>
               <s-table-header listSlot="labeled">Category</s-table-header>
               <s-table-header listSlot="labeled" format="currency">Price</s-table-header>
-              <s-table-header listSlot="labeled" format="numeric">Available</s-table-header>
+              <s-table-header listSlot="labeled">Available</s-table-header>
               <s-table-header listSlot="inline">Destination</s-table-header>
               <s-table-header listSlot="inline">Action</s-table-header>
             </s-table-header-row>
@@ -1087,6 +1106,14 @@ function ProductRow({
 
   const sourceVariants = product.variants.edges.map((e: any) => e.node);
   const firstVariant = sourceVariants[0];
+  const totalStock = sourceVariants.reduce(
+    (sum: number, v: any) => sum + (v.inventoryQuantity ?? 0),
+    0,
+  );
+  const stockLabel =
+    sourceVariants.length > 1
+      ? `${totalStock} in stock for ${sourceVariants.length} variants`
+      : `${totalStock} in stock`;
   const category = product.category?.name ?? product.productType ?? "—";
   const productNumericId = product.id.split("/").pop();
   const adminProductUrl = `https://${shop}/admin/products/${productNumericId}`;
@@ -1139,7 +1166,7 @@ function ProductRow({
       <s-table-cell>
         {firstVariant?.price ? `$${firstVariant.price}` : "—"}
       </s-table-cell>
-      <s-table-cell>{firstVariant?.inventoryQuantity ?? 0}</s-table-cell>
+      <s-table-cell>{stockLabel}</s-table-cell>
       <s-table-cell>
         {!hasDestination ? (
           "—"
