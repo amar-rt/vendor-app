@@ -131,18 +131,18 @@ function brandMetafields(brand: {
   accentColor: string | null;
 } | null) {
   if (!brand) return [];
-  const fields: { key: string; value: string | null }[] = [
-    { key: "brand_name", value: brand.name },
-    { key: "brand_logo", value: brand.logoUrl },
-    { key: "brand_description", value: brand.description },
-    { key: "brand_accent_color", value: brand.accentColor },
+  const fields: { key: string; value: string | null; type: string }[] = [
+    { key: "brand_name", value: brand.name, type: "single_line_text_field" },
+    { key: "brand_logo", value: brand.logoUrl, type: "single_line_text_field" },
+    { key: "brand_description", value: brand.description, type: "multi_line_text_field" },
+    { key: "brand_accent_color", value: brand.accentColor, type: "single_line_text_field" },
   ];
   return fields
     .filter((f) => f.value)
     .map((f) => ({
       namespace: BRAND_NAMESPACE,
       key: f.key,
-      type: "single_line_text_field",
+      type: f.type,
       value: f.value as string,
     }));
 }
