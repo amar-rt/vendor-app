@@ -122,6 +122,7 @@ type BrandRecord = {
   logoUrl: string | null;
   description: string | null;
   accentColor: string | null;
+  callbackUrl: string | null;
 };
 
 function toOptionValues(selectedOptions: { name: string; value: string }[]) {
@@ -133,13 +134,19 @@ function brandMetafields(brand: {
   logoUrl: string | null;
   description: string | null;
   accentColor: string | null;
+  callbackUrl: string | null;
 } | null) {
   if (!brand) return [];
   const fields: { key: string; value: string | null; type: string }[] = [
     { key: "brand_name", value: brand.name, type: "single_line_text_field" },
     { key: "brand_logo", value: brand.logoUrl, type: "single_line_text_field" },
     { key: "brand_description", value: brand.description, type: "multi_line_text_field" },
+    // Kept as single_line_text_field (not the also-valid "color" type) —
+    // destination stores may already have this field's definition locked
+    // in as single_line_text_field from earlier pushes, and changing the
+    // type now would reproduce the exact type-conflict bug fixed earlier.
     { key: "brand_accent_color", value: brand.accentColor, type: "single_line_text_field" },
+    { key: "brand_callback_url", value: brand.callbackUrl, type: "url" },
   ];
   return fields
     .filter((f) => f.value)

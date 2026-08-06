@@ -227,6 +227,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       String(formData.get("description") || "").trim() || null;
     const accentColor =
       String(formData.get("accentColor") || "").trim() || null;
+    const callbackUrl =
+      String(formData.get("callbackUrl") || "").trim() || null;
 
     if (!name) {
       return { error: "Brand name is required." };
@@ -234,8 +236,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     await db.brand.upsert({
       where: { shop },
-      update: { name, logoUrl, description, accentColor },
-      create: { shop, name, logoUrl, description, accentColor },
+      update: { name, logoUrl, description, accentColor, callbackUrl },
+      create: { shop, name, logoUrl, description, accentColor, callbackUrl },
     });
 
     return { ok: true };
@@ -383,6 +385,7 @@ function BrandCard({
     logoUrl: string | null;
     description: string | null;
     accentColor: string | null;
+    callbackUrl: string | null;
   };
 }) {
   const shopify = useAppBridge();
@@ -457,6 +460,11 @@ function BrandCard({
             <s-text>{brand.name}</s-text>
             {brand.description && (
               <s-text color="subdued">{brand.description}</s-text>
+            )}
+            {brand.callbackUrl && (
+              <s-link href={brand.callbackUrl} target="_blank">
+                {brand.callbackUrl}
+              </s-link>
             )}
           </s-stack>
           <s-button onClick={() => setIsEditing(true)}>Edit</s-button>
@@ -588,12 +596,18 @@ function BrandCard({
             label="Description"
             defaultValue={brand?.description ?? ""}
           ></s-text-field>
-          <s-text-field
+          <s-url-field
+            name="callbackUrl"
+            label="Callback URL"
+            placeholder="https://your-brand-site.com"
+            autocomplete="url"
+            defaultValue={brand?.callbackUrl ?? ""}
+          ></s-url-field>
+          <s-color-field
             name="accentColor"
-            label="Accent color (hex)"
-            placeholder="#1a73e8"
+            label="Accent color"
             defaultValue={brand?.accentColor ?? ""}
-          ></s-text-field>
+          ></s-color-field>
 
           <s-stack direction="inline" gap="base">
             <s-button
