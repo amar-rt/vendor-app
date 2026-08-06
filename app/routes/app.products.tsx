@@ -1117,9 +1117,17 @@ function ProductRow({
         )}
       </s-table-cell>
       <s-table-cell>
-        <s-link href={adminProductUrl} target="_blank">
+        {/* s-link doesn't expose a style/className prop to override its
+            default underlined link color, so this uses a plain anchor to
+            get bold, black, non-underlined text while staying a real link. */}
+        <a
+          href={adminProductUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: "#1a1a1a", fontWeight: 700, textDecoration: "none" }}
+        >
           {product.title}
-        </s-link>
+        </a>
       </s-table-cell>
       <s-table-cell>
         <s-badge tone={product.status === "ACTIVE" ? "success" : "neutral"}>
