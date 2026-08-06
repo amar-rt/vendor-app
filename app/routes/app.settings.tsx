@@ -281,11 +281,22 @@ export default function Settings() {
       <s-section heading="Destination store">
         <s-paragraph>
           The destination merchant creates a custom app in their own store
-          (Settings → Apps and sales channels → Develop apps), grants it
-          product/inventory scopes, and gives you its Client ID and Client
-          Secret. We use those to mint an Admin API access token whenever we
-          need to read or write their catalog — no further approval step on
-          their side.
+          (Settings → Apps and sales channels → Develop apps), grants it the
+          scopes below, and gives you its Client ID and Client Secret. We use
+          those to mint an Admin API access token whenever we need to read or
+          write their catalog — no further approval step on their side.
+        </s-paragraph>
+        <s-unordered-list>
+          <s-list-item>read_products / write_products</s-list-item>
+          <s-list-item>read_inventory / write_inventory</s-list-item>
+          <s-list-item>read_locations</s-list-item>
+          <s-list-item>write_files (for forwarding product images)</s-list-item>
+        </s-unordered-list>
+        <s-paragraph color="subdued">
+          A missing scope here doesn’t show up as a clear permission error —
+          Shopify returns a generic “doesn’t exist” message on whichever
+          mutation needs it (most commonly write_inventory, on the
+          inventory-tracking step of a push).
         </s-paragraph>
 
         {destination && (
