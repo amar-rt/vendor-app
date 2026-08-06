@@ -124,6 +124,10 @@ type BrandRecord = {
   accentColor: string | null;
 };
 
+function toOptionValues(selectedOptions: { name: string; value: string }[]) {
+  return selectedOptions.map((o) => ({ optionName: o.name, name: o.value }));
+}
+
 function brandMetafields(brand: {
   name: string | null;
   logoUrl: string | null;
@@ -164,9 +168,10 @@ async function pushOne(
           productType
           vendor
           featuredImage { url altText }
+          options { name values }
           variants(first: 100) {
             edges {
-              node { id title sku price inventoryQuantity }
+              node { id title sku price inventoryQuantity selectedOptions { name value } }
             }
           }
         }
@@ -224,6 +229,19 @@ async function pushOne(
           productType: sourceProduct.productType,
           vendor: brand?.name || sourceProduct.vendor,
           metafields: brandMetafields(brand),
+          // Without this, Shopify defaults every new product to a single
+          // system option literally named "Title" with one value "Default
+          // Title" — fine for single-variant products, but multi-variant
+          // ones need their real option structure (Size, Color, ...) up
+          // front so productVariantsBulkCreate below has real option names
+          // to attach each variant to, instead of a fabricated "Title"
+          // value that Shopify silently rejects further down the line.
+          productOptions: sourceProduct.options?.length
+            ? sourceProduct.options.map((o: any) => ({
+                name: o.name,
+                values: o.values.map((v: string) => ({ name: v })),
+              }))
+            : undefined,
         },
         media: sourceProduct.featuredImage
           ? [
@@ -270,6 +288,11 @@ async function pushOne(
             // tracked: true is required — otherwise inventorySetQuantities
             // below silently rejects this variant with a userError.
             inventoryItem: { sku: firstSource.sku, tracked: true },
+            // productCreate auto-assigns this variant the *first* value of
+            // each option (per Shopify's own docs), which won't generally
+            // match this specific source variant's actual combination —
+            // pin it down explicitly.
+            optionValues: toOptionValues(firstSource.selectedOptions),
           },
         ],
       },
@@ -319,7 +342,7 @@ async function pushOne(
           variants: restSource.map((v: any) => ({
             price: v.price,
             inventoryItem: { sku: v.sku, tracked: true },
-            optionValues: [{ optionName: "Title", name: v.title }],
+            optionValues: toOptionValues(v.selectedOptions),
           })),
         },
       },
