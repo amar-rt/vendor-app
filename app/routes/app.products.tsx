@@ -166,7 +166,7 @@ async function publishToOnlineStore(destinationAdmin: any, productId: string) {
     `#graphql
       query OnlineStorePublication {
         publications(first: 20) {
-          edges { node { id catalog { title } } }
+          edges { node { id name catalog { title } } }
         }
       }`,
   );
@@ -178,10 +178,15 @@ async function publishToOnlineStore(destinationAdmin: any, productId: string) {
   }
   const publications = pubJson.data?.publications?.edges ?? [];
   const onlineStore = publications.find(
-    (e: any) => e.node.catalog?.title === "Online Store",
+    (e: any) => e.node.catalog?.title === "Online Store" || e.node.name === "Online Store",
   );
   if (!onlineStore) {
-    throw new Error("Destination store has no Online Store sales channel.");
+    const found = publications
+      .map((e: any) => e.node.name ?? e.node.catalog?.title ?? "(unnamed)")
+      .join(", ");
+    throw new Error(
+      `Destination store has no Online Store sales channel. Found: ${found || "none"}`,
+    );
   }
 
   const publishResp = await destinationAdmin.graphql(
