@@ -93,7 +93,6 @@ model VariantLink {
   id                         String @id @default(cuid())
   productLinkId              String
   sourceVariantId            String
-  sourceInventoryItemId      String
   destinationVariantId       String
   destinationInventoryItemId String
   sku                        String?

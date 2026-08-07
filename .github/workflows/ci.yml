@@ -4,29 +4,22 @@ name: CI
 
 jobs:
   CI:
-    name: Node ${{ matrix.node }} and ${{ matrix.manager }}
+    name: Node ${{ matrix.node }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node: [20.19.0, 22, 24]
-        manager: ['npm', 'yarn', 'pnpm']
+        node: [20.19.0, 22]
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: ${{ matrix.node }}
+          cache: npm
 
-      - name: Install pnpm
-        if: ${{ matrix.manager == 'pnpm' }}
-        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
-        with:
-          version: 8
-
-      - name: Install dependencies using ${{ matrix.manager }}
-        run: ${{ matrix.manager }} install
+      - name: Install dependencies
+        run: npm ci
 
       - name: Run TypeScript type checking
-        if: ${{ !startsWith(github.head_ref || github.ref_name, 'javascript') }}
         run: npx tsc --noEmit
 
       - name: Run ESLint

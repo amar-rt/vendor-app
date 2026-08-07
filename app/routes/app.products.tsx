@@ -379,7 +379,6 @@ async function pushOne(
 
   const variantLinks: {
     sourceVariantId: string;
-    sourceInventoryItemId: string;
     destinationVariantId: string;
     destinationInventoryItemId: string;
     sku: string | null;
@@ -387,7 +386,6 @@ async function pushOne(
   }[] = [
     {
       sourceVariantId: firstSource.id,
-      sourceInventoryItemId: firstSource.id,
       destinationVariantId: defaultVariant.id,
       destinationInventoryItemId: defaultVariant.inventoryItem.id,
       sku: firstSource.sku,
@@ -447,7 +445,6 @@ async function pushOne(
       const created = createdVariants[idx];
       variantLinks.push({
         sourceVariantId: v.id,
-        sourceInventoryItemId: v.id,
         destinationVariantId: created.id,
         destinationInventoryItemId: created.inventoryItem.id,
         sku: v.sku,
@@ -524,7 +521,6 @@ async function pushOne(
       variants: {
         create: variantLinks.map((v) => ({
           sourceVariantId: v.sourceVariantId,
-          sourceInventoryItemId: v.sourceInventoryItemId,
           destinationVariantId: v.destinationVariantId,
           destinationInventoryItemId: v.destinationInventoryItemId,
           sku: v.sku,
